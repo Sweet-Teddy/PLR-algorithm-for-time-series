@@ -1,0 +1,186 @@
+# -*- coding: utf-8 -*-
+
+# =============================================================================
+# """
+# Created on Mon Mar  9 14:45:16 2020
+# 
+# @author: Administrator
+# 
+# 算法3-2，初始分段的评估与再次分割算法
+# 
+# def spBySWAB(TS,sps, Vtj, max_error):
+#         anchor = 1
+#         i = TS.index(Vtj)
+#         while(calculete_error(TS[anchor: anchor + i] < max_error)):
+#             i += 1
+#         Seg_TS = concat(Seg_TS, create_segment(T[anchor: anchor + (i - 1)]))
+#         anchor = anchor + i
+# 输入：
+# 线性分段点队列spList;重要转折点队列tpIList;基础转折点tpBList;
+# 预设最大分段误差MES=θ
+# 输出：
+# 处理后的线性分段点队列spQ;
+# 1.i = 0; #线性分段数初始化
+# 2.while i < spList.length:
+# 3.   sps = spList.get(Vti),spe = spList.get(Vti+1) #取出当前分段的起止点
+# 4.   spQ.push(sps); #当前分段起始点存入spQ
+# 5.   for j = sps + 1; j < spe; j++ do
+# 6.      es += calcES(Vtj,sps,spe) #计算从sps到spe的分段误差
+# 7.      if es > θ then
+#             curTPI = findNearestTPI(tpIList, spList[i])
+# 8.         if curTPI = null then
+# 9.            curTPBs = findTPBS(tpBList, sps, Vtj) #如果找不到TPI则从Vtj向前寻找所有的基础转折点TPBs
+# 10.           if curTPBs = null then
+# 11.               sppBySWAB(sps,Vtj)  #在找不到TPBs的最坏情况下，采用SWAB方法的思想获取分段点
+# 12.           else
+# 13.               spQ.append(curTPBs) #全部TPBs作为分段起止点加入spQ
+# 14.               j = curTPBs.getEnd()#重新设置起始点并向后继续进行分段评估
+# 15.           end if
+# 16.        else 
+# 17.           spQ.push(curTPI)
+# 18.           j = curTI.index() #重新设置起始点并向后继续进行分段评估
+# 19.        end if
+# 20.     end if
+# 21.   end for
+# 22.   i++
+# 23.end while
+# 24.return spQ
+# """
+# =============================================================================
+import numpy as np
+import methods as md
+import PLR_copy1 as plr_1
+import matplotlib.pyplot as plt
+seg_num = 6
+MEP = 0.2#定义单点误差
+MES = 0.3#定义分段误差
+
+#-----------------------计算sps--->spe的分段误差---------------------
+def calculate_error(X,Ts):
+    #1.获取拟合直线的方程y = a*x + b----
+    #Ts = Ts.tolist()
+    #X = X.tolist()
+    #a = abs((Ts[-len(Ts)]-Ts[-1])/len(Ts))
+    #b = Ts[-1] - a
+    a,b = md.min_error_func(X,Ts)
+    sum_error = 0
+    for i in range(len(Ts)):
+        sum_error += (Ts[i] - (a*X[i] + b))**2
+    sum_error = sum_error/len(Ts)
+    return sum_error#返回垂直方向的均方误差
+
+#---------------------------参数说明----------------------
+#X 为标准化后的时间戳    TS为标准化后的close序列  tpIList, tpBlist都是转折点，MES为误差 , ts 为原始序列用来取数据下标     
+def segmentation_1(X,TS,spList, tpIList, tpBList, MES, ts):
+    i = 0 #线性分段初始化
+    spQ = []#输出的线性分段点队列
+    es = 0#计算从sps到spe的分段误差
+    
+    #---------------函数参数说明----------------
+    #1. TS 为原始序列   2. tpIlist,tpBList都是转折点， sps是当前分段起始点， Vtj为当前点的下标
+    def findNearestTPI(TS,tpIList,tpBList,sps, Vtj):
+        k = 0
+        k = TS.index(Vtj)#找到Vtj在原始序列中位置
+        while(k < len(TS) - 1):
+            k += 1
+            if TS[k] in tpIList:#从当前时序点的后面一个点向前找到最近的重要转折点
+                return TS[k]        
+        return None
+    #---------------函数参数说明----------------  
+    #1. TS    2. tpIlist,tpBList都是转折点， sps是当前分段起始点， Vtj为当前点的下标
+    def findTPBS(TS,tpBList, sps, Vtj):
+        k = 0
+        k = TS.index(Vtj)
+        while(k < len(TS) -1):
+            #if (bool(1-(TS[k] in tpIList))):
+            if (bool(TS[k + 1] in tpIList) == False):
+            #如果找不到重要转折点，则从Vtj向前寻找所有的基础转折点
+                if TS[k] in tpBList:
+                    cut_point = tpBList.index(TS[k])
+                    list_ans = tpBList[cut_point:] #找到Vtj后的所有基础转折点
+                    return list_ans
+                else:
+                    return None
+            k += 1
+
+    while(i < len(spList)-1):
+        #sps = spList.index(spList[i])#取出当前分段的起止点的下标,sps为起点下标,spe为终点下标
+        #spe = spList.index(spList[i + 1])
+        sps = ts.index(spList[i])
+        spe = ts.index(spList[i + 1])
+        spQ.append(spList[i]) #当前分段起始点存入spQ
+        j = sps + 1
+        #es = 0
+        while(j< spe):
+            #es += abs(sps - TS[j])
+            es += calculate_error(X[sps:spe+1],TS[sps:spe+1])#计算从sps到spe的分段误差,等价于求s到e的单点误差之和,单点误差为两点的MVD最大垂直距离
+            if es > MES : #如果当前分段误差超过了预设的分段误差 ，则继续进行分段操作
+                #curTPI = findNearestTPI(tpIList, TS[j]) #从Vtj向前寻找最近的重要转折点,
+                Vtj = ts[j]   #Vtj为当前分段的结束点
+                curTPI = findNearestTPI(ts,tpIList,tpBList,sps, Vtj) #从Vtj向前寻找最近的重要转折点
+                if curTPI == None:
+                    curTPBs = findTPBS(ts,tpBList, sps, Vtj) #如果找不到TPI则从spList[i]向前寻找所有的基础转折点TPBS
+                    if curTPBs == None:
+                        print("这里使用SWAB方法获取分段点")
+                        #spBySWAB(sps, spList[i])#在找不到TPBS的最坏情况下，采用SWAB方法的思想获取分段点
+                    else:
+                        spQ.append(curTPBs[-1]) #全部TPBs作为分段起止点加入spQ
+                        #j = curTPBs.getEnd()#重新设置起始点并向后继续进行分段评估
+                        #PLR-TP将从离vt；最近的基础转折点，即TPBs的最后一个基础转折点(TPBs．1ength．1)向后继续进行分段评估
+                        j = ts.index(curTPBs[-1]) + 1
+                else:
+                    #spQ.append(curTPBs) #全部TPBs作为分段起止点加入spQ
+                    spQ.append(curTPI) #找到离Vtj最近的TPI并将此分段在TPI处进行再次线性分割
+                    #j = curTPI.index() #重新设置起始点并向后继续进行分段评估
+                    j = ts.index(curTPI) #重新设置起始点并向后继续进行分段评估
+            j += 1
+        i += 1
+    spQ.append(SegList[-1])
+    return spQ
+
+if __name__=='__main__':
+    TS = md.loadDataSet(r'data\test1.csv')
+    TS_x = md.loadDataSet(r'data\test1.csv')
+    ts = np.array(TS_x['Close'])
+    ts = ts.tolist()
+    ts_x = np.array(TS_x['Date'])
+    TS_x = np.array(TS_x['Date'])
+    TS_x = md.time_translate(TS_x)
+    std_TS_x = np.std(TS_x)#时间序列的原始数据方差
+    mean_TS_x = np.mean(TS_x)#时间序列的原始数据均值
+    x = (TS_x - mean_TS_x)/std_TS_x #将时间戳x做标准化处理，便于传参进行后续计算
+    TS_1 = np.array(TS['Close'])
+    std_TS_1 = np.std(TS_1)#收盘价的原始数据方法
+    mean_TS_1 = np.mean(TS_1)#收盘价的原始数据均值
+    y = (TS_1 - mean_TS_1)/std_TS_1
+    spQ=[]
+    SegList, tpIList, tpBList = plr_1.segmentation(y,x,seg_num,MEP)
+    for i in range(len(tpBList)):
+        tpBList[i] = tpBList[i] * std_TS_1 + mean_TS_1
+    for i in range(len(tpIList)):
+        tpIList[i] = tpIList[i] * std_TS_1 + mean_TS_1
+    for i in range(len(SegList)):
+        SegList[i] = SegList[i] * std_TS_1 + mean_TS_1
+    ans_seg_point_date1=[]
+    for i in range(len(SegList)):
+        ans_seg_point_date1.append(ts_x[ts.index(SegList[i])]) 
+    spQ = segmentation_1(x,y,SegList,tpIList,tpBList,MES,ts)  
+    segList_OPLR = []
+    #时间序列的复原
+    for i in range(len(spQ)):
+        segList_OPLR.append(spQ[i] * std_TS_1 + mean_TS_1)    
+    ans_seg_point_date=[]
+    for i in range(len(spQ)):
+        ans_seg_point_date.append(ts_x[ts.index(spQ[i])])    
+    plt.figure(figsize=(12,6))
+    plt.plot(ts_x,ts,'r--',label='raw_data') 
+    plt.scatter(ans_seg_point_date,spQ,color='blue',label='spQ_point')
+    plt.scatter(ans_seg_point_date1,SegList,color='orange',label='seg_point')
+    plt.plot(ans_seg_point_date,spQ,color='green',label='fitting_line')
+    plt.legend()
+    plt.xticks(ts_x, ts_x, rotation=90, fontsize=10)
+    plt.show() 
+    
+    
+   
+    
