@@ -1,0 +1,6 @@
+numpy
+pytest
+pytest-cov
+codecov
+sklearn
+scipy
